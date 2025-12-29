@@ -1,0 +1,45 @@
+# API Keys and Credentials
+.env
+*.env
+config/scraper_config.yaml
+config/_credentials.json
+
+# Data files
+data/raw/**/*.csv
+data/raw/**/*.sas7bdat
+data/processed/**/*.csv
+*.xlsx
+*.parquet
+
+# Models
+models/*.pkl
+models/*.h5
+models/*.joblib
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

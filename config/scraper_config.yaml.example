@@ -1,0 +1,83 @@
+# Web Scraper Configuration
+
+# CDC Scraper Settings
+cdc:
+  base_url: "https://www.cdc.gov"
+  news_url: "https://www.cdc.gov/media/releases/"
+  max_articles: 100
+  rate_limit_seconds: 2
+  keywords:
+    - flu
+    - influenza
+    - covid
+    - coronavirus
+    - rsv
+    - outbreak
+    - emergency
+    - hospitalization
+    - respiratory
+    - epidemic
+    - pandemic
+    - vaccine
+    - infection
+
+# Reddit Scraper Settings
+reddit:
+  subreddits:
+    - AskDocs
+    - HealthAnxiety
+    - phoenix
+    - arizona
+  lookback_days: 30
+  max_posts_per_subreddit: 500
+  rate_limit_seconds: 1
+  symptoms:
+    - fever
+    - cough
+    - shortness of breath
+    - chest pain
+    - nausea
+    - vomiting
+    - headache
+    - fatigue
+    - sore throat
+    - body aches
+    - chills
+    - dizziness
+    - congestion
+    - difficulty breathing
+    - stomach pain
+    - diarrhea
+
+# Twitter Scraper Settings
+twitter:
+  hashtags:
+    - "#fluseason"
+    - "#ERwait"
+    - "#sicktoday"
+    - "#healthanxiety"
+  keywords:
+    - "emergency room"
+    - "urgent care"
+    - "feel sick"
+    - "hospital wait"
+    - "flu symptoms"
+    - "covid symptoms"
+  location: "Phoenix"
+  lookback_days: 7
+  max_tweets_per_query: 500
+  rate_limit_seconds: 1
+
+# Scheduler Settings
+scheduler:
+  run_time: "06:00"
+  timezone: "America/Phoenix"
+  retry_attempts: 3
+  retry_delay_minutes: 30
+
+# Output Settings
+output:
+  raw_data_path: "data/raw"
+  processed_data_path: "data/processed"
+  log_path: "logs"
+  save_format: "csv"
