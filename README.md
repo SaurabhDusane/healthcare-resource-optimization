@@ -6,11 +6,11 @@
 
 > An end-to-end data analytics platform combining web scraping, statistical analysis, machine learning, and interactive dashboards to optimize healthcare resource allocation and predict emergency room demand patterns.
 
-## 📊 Project Overview
+## Project Overview
 
 This project demonstrates advanced data analytics capabilities by analyzing 100,000+ emergency room visit records while incorporating real-time web-scraped data from healthcare news, social media, and public health sources. The system provides early warning signals for demand surges and actionable insights for hospital administrators.
 
-### 🎯 Key Features
+### Key Features
 
 - **Automated Web Scraping Pipeline**: Collects real-time data from CDC, Reddit, and Twitter
 - **Comprehensive Statistical Analysis**: Hypothesis testing, correlation analysis, effect size calculations
@@ -19,12 +19,12 @@ This project demonstrates advanced data analytics capabilities by analyzing 100,
 - **Interactive Dashboard**: Tableau-based visualization with early warning system
 - **Production-Ready Code**: Modular architecture, error handling, comprehensive testing
 
-### 💡 Business Impact
+### Business Impact
 
-- ✅ **3-5 day advance warning** for ER demand spikes via social media signals
-- ✅ **12% model improvement** when incorporating web-scraped features
-- ✅ **40% higher visits** identified for Monday 6-9 PM (staffing optimization)
-- ✅ **2.3x higher non-urgent visits** among uninsured patients (preventive care targeting)
+-  **3-5 day advance warning** for ER demand spikes via social media signals
+-  **12% model improvement** when incorporating web-scraped features
+-  **40% higher visits** identified for Monday 6-9 PM (staffing optimization)
+-  **2.3x higher non-urgent visits** among uninsured patients (preventive care targeting)
 
 ## 🛠️ Technologies Used
 
@@ -40,7 +40,7 @@ This project demonstrates advanced data analytics capabilities by analyzing 100,
 - Git & GitHub
 - VS Code
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 healthcare-resource-optimization/
@@ -53,7 +53,7 @@ healthcare-resource-optimization/
 └── docs/              # Comprehensive documentation
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -107,7 +107,7 @@ python src/data_processing/dashboard_prep.py
 # Output files in data/processed/ ready for Tableau
 ```
 
-## 📈 Key Results
+## Key Results
 
 ### Predictive Performance
 - **ER Visit Forecasting**: 91.3% accuracy (MAPE: 8.7%)
@@ -115,10 +115,10 @@ python src/data_processing/dashboard_prep.py
 - **Feature Importance**: News mentions (lag 3) ranked #2 predictor
 
 ### Data Collected
-- 📰 **5,247 CDC/WHO news articles** scraped and analyzed
-- 💬 **12,381 Reddit health discussions** with sentiment analysis
-- 🐦 **18,756 health-related tweets** processed
-- 🏥 **106,234 ER visit records** from NHAMCS dataset
+-  **5,247 CDC/WHO news articles** scraped and analyzed
+-  **12,381 Reddit health discussions** with sentiment analysis
+-  **18,756 health-related tweets** processed
+-  **106,234 ER visit records** from NHAMCS dataset
 
 ### Statistical Findings
 - Monday 6-9 PM shows **40.3% higher** ER visits (p < 0.001)
@@ -126,7 +126,7 @@ python src/data_processing/dashboard_prep.py
 - Uninsured patients have **2.31x higher** non-urgent visit rates (χ² test, p < 0.001)
 - Social media sentiment correlates with visit acuity (ρ = 0.43, p < 0.01)
 
-## 📊 Dashboard Preview
+##  Dashboard Preview
 
 ![Dashboard Overview](visualizations/dashboard_screenshots/overview.png)
 *Executive overview showing KPIs, forecasts, and early warning alerts*
@@ -137,7 +137,7 @@ python src/data_processing/dashboard_prep.py
 ![Web Intelligence](visualizations/dashboard_screenshots/scraped_insights.png)
 *Real-time social media sentiment and news mention tracking*
 
-## 📚 Documentation
+## Documentation
 
 - [**Data Dictionary**](docs/data_dictionary.md): Complete variable definitions
 - [**Scraping Methodology**](docs/scraping_methodology.md): Ethical considerations and technical approach
@@ -145,20 +145,20 @@ python src/data_processing/dashboard_prep.py
 - [**Dashboard Guide**](docs/dashboard_implementation.md): Step-by-step Tableau setup
 - [**Executive Summary**](reports/executive_summary.md): Business-focused findings
 
-## 🎓 Skills Demonstrated
+## Skills Demonstrated
 
 This project showcases:
 
-✅ **Data Acquisition**: Web scraping, API integration, ETL pipelines  
-✅ **Data Wrangling**: Missing value handling, feature engineering, data validation  
-✅ **Statistical Analysis**: Hypothesis testing (t-test, ANOVA, χ²), correlation, effect sizes  
-✅ **Machine Learning**: Time series forecasting, classification, hyperparameter tuning  
-✅ **NLP**: Sentiment analysis, text preprocessing, keyword extraction  
-✅ **Data Visualization**: 20+ professional charts, interactive dashboards  
-✅ **Communication**: Executive reports, technical documentation, storytelling  
-✅ **Software Engineering**: Modular code, version control, testing, logging  
+ **Data Acquisition**: Web scraping, API integration, ETL pipelines  
+ **Data Wrangling**: Missing value handling, feature engineering, data validation  
+ **Statistical Analysis**: Hypothesis testing (t-test, ANOVA, χ²), correlation, effect sizes  
+ **Machine Learning**: Time series forecasting, classification, hyperparameter tuning  
+ **NLP**: Sentiment analysis, text preprocessing, keyword extraction  
+ **Data Visualization**: 20+ professional charts, interactive dashboards  
+ **Communication**: Executive reports, technical documentation, storytelling  
+ **Software Engineering**: Modular code, version control, testing, logging  
 
-## 🔮 Future Enhancements
+## Future Enhancements
 
 - [ ] Deploy real-time dashboard using Streamlit/Flask
 - [ ] Integrate additional data sources (weather, traffic, local events)
@@ -167,27 +167,9 @@ This project showcases:
 - [ ] Geographic expansion to multiple hospital systems
 - [ ] A/B testing framework for intervention strategies
 
-## 📝 License
-
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
-
-## 👤 Author
-
-**Your Name**
-- M.S. Computer Engineering, Arizona State University
-- LinkedIn: [your-linkedin]
-- Portfolio: [your-portfolio-site]
-- Email: your.email@example.com
-
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - CDC NHAMCS dataset contributors
 - Reddit API and PRAW library developers
 - Anthropic Claude for technical guidance
 - ASU School of Computing and Augmented Intelligence
-
----
-
-**⭐ If this project helped you, please give it a star!**
-
-*Built with passion for data-driven healthcare improvement*
