@@ -1,4 +1,4 @@
-# 🏥 Healthcare Resource Optimization Analytics Platform
+# Healthcare Resource Optimization Analytics Platform
 
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
@@ -26,7 +26,7 @@ This project demonstrates advanced data analytics capabilities by analyzing 100,
 -  **40% higher visits** identified for Monday 6-9 PM (staffing optimization)
 -  **2.3x higher non-urgent visits** among uninsured patients (preventive care targeting)
 
-## 🛠️ Technologies Used
+## Technologies Used
 
 **Programming & Libraries:**
 - Python 3.9+ (pandas, numpy, scipy, scikit-learn)
