@@ -9,12 +9,12 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 setup(
     name="healthcare-resource-optimization",
     version="1.0.0",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Saurabh Dusane",
+    author_email="sdusane1@asu.edu",
     description="Healthcare Resource Optimization Analytics Platform with Web Scraping and ML",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/healthcare-resource-optimization",
+    url="https://github.com/saurabhdusane/healthcare-resource-optimization",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -42,6 +42,8 @@ setup(
     entry_points={
         "console_scripts": [
             "health-scraper=src.scrapers.scheduler:main",
+            "health-pipeline=src.pipeline:run_pipeline",
+            "health-generate-data=src.data.generate_synthetic_data:main",
         ],
     },
 )

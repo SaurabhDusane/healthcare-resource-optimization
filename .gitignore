@@ -16,6 +16,12 @@ models/*.pkl
 models/*.h5
 models/*.joblib
 
+# Generated run artifacts / visualizations (keep the dirs via .gitkeep)
+reports/pipeline_metrics.json
+visualizations/*.png
+visualizations/*.html
+!**/.gitkeep
+
 # Python
 __pycache__/
 *.py[cod]
