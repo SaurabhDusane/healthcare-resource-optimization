@@ -111,15 +111,31 @@ class DashboardPrep:
         )
         return signals
 
+    def daily_visits_by_site(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Daily visit counts per hospital site (multi-hospital view)."""
+        if not {"visit_date", "SITE"}.issubset(df.columns):
+            return pd.DataFrame(columns=["date", "SITE", "visits"])
+        return (
+            df.assign(visit_date=pd.to_datetime(df["visit_date"]))
+            .groupby([pd.Grouper(key="visit_date", freq="D"), "SITE"])
+            .size()
+            .rename("visits")
+            .reset_index()
+            .rename(columns={"visit_date": "date"})
+        )
+
     # ------------------------------------------------------------------ #
     def build_all(self, df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
-        """Compute every dashboard table."""
-        return {
+        """Compute every dashboard table (site table added when SITE present)."""
+        tables = {
             "hourly_heatmap": self.hourly_heatmap(df),
             "daily_visits": self.daily_visits(df),
             "acuity_by_insurance": self.acuity_by_insurance(df),
             "web_signals": self.web_signals(df),
         }
+        if "SITE" in df.columns:
+            tables["daily_visits_by_site"] = self.daily_visits_by_site(df)
+        return tables
 
     def export(self, df: pd.DataFrame) -> Dict[str, str]:
         """Compute and write all dashboard tables; return their paths."""

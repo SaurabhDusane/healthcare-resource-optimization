@@ -9,7 +9,8 @@ ignored-modules=praw,
                 snscrape.modules.twitter,
                 schedule,
                 prophet,
-                spacy
+                spacy,
+                prefect
 
 [FORMAT]
 max-line-length=100

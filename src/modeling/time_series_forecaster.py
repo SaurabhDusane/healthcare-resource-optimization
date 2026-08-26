@@ -151,7 +151,7 @@ class TimeSeriesForecaster:
         Returns a dict with per-model metrics, the best model name, and the
         holdout window, suitable for logging to an experiment tracker.
         """
-        models = models or ["seasonal_naive", "arima", "prophet"]
+        models = models or ["seasonal_naive", "arima", "mlp", "prophet"]
         series = self.prepare_series(df, target_col=target_col, date_col=date_col)
         train, test = self.train_test_split(series, test_size=test_size)
         horizon = len(test)
@@ -169,6 +169,18 @@ class TimeSeriesForecaster:
                 results["arima"] = self.evaluate_forecast(test.to_numpy(), pred)
             except Exception as exc:  # pragma: no cover - numerical edge cases
                 self.logger.warning("ARIMA backtest failed: %s", exc)
+
+        if "mlp" in models:
+            try:
+                from src.modeling.neural_forecaster import MLPForecaster
+
+                n_lags = min(14, max(2, len(train) // 3))
+                mlp = MLPForecaster(n_lags=n_lags, random_state=42)
+                mlp.fit(train)
+                pred = mlp.forecast(horizon)
+                results["mlp"] = self.evaluate_forecast(test.to_numpy(), pred)
+            except Exception as exc:  # pragma: no cover - convergence edge cases
+                self.logger.warning("MLP backtest failed: %s", exc)
 
         if "prophet" in models:
             model = self.train_prophet(train)

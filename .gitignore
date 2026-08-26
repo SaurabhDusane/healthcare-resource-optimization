@@ -21,6 +21,8 @@ models/*.json
 reports/pipeline_metrics.json
 reports/acuity_classification.json
 reports/experiments/
+reports/drift_reference.json
+reports/drift_report.json
 visualizations/*.png
 visualizations/*.html
 !**/.gitkeep

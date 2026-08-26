@@ -37,6 +37,7 @@ from src.data_processing.feature_engineering import FeatureEngineer
 from src.modeling.classification_model import ClassificationModel
 from src.modeling.model_evaluator import ModelEvaluator
 from src.modeling.time_series_forecaster import TimeSeriesForecaster
+from src.monitoring.drift import DriftMonitor
 from src.utils.experiment_tracker import ExperimentTracker
 
 logging.basicConfig(
@@ -114,6 +115,7 @@ class Pipeline:
         daily = self._summarize_timeseries(features)
         self._forecast(daily)
         self._export_dashboard(features)
+        self._monitor_drift(features)
         self._write_metrics()
 
         self.logger.info("=== Pipeline complete ===")
@@ -309,6 +311,38 @@ class Pipeline:
         )
         paths = prep.export(features)
         self.metrics["dashboard_tables"] = paths
+
+    def _monitor_drift(self, features: pd.DataFrame) -> None:
+        """Establish a drift reference on first run; compare against it after."""
+        self.logger.info("Monitoring data drift")
+        monitor = DriftMonitor()
+        cols = [c for c in CLASSIFIER_FEATURES if c in features.columns]
+        current = features[cols]
+        ref_path = os.path.join(self.config.reports_dir, "drift_reference.json")
+
+        if not os.path.exists(ref_path):
+            monitor.save_profile(current, ref_path)
+            self.metrics["drift"] = {
+                "status": "baseline_established",
+                "reference": ref_path,
+            }
+            return
+
+        report = monitor.compare_to_profile(current, ref_path)
+        report_path = os.path.join(self.config.reports_dir, "drift_report.json")
+        with open(report_path, "w", encoding="utf-8") as fh:
+            json.dump(report.to_dict(), fh, indent=2, default=str)
+        self.metrics["drift"] = {
+            "status": "compared",
+            "n_features": report.n_features,
+            "n_drifted": report.n_drifted,
+            "drift_share": report.drift_share,
+            "drifted_features": report.drifted_features,
+            "report": report_path,
+        }
+        self.logger.info(
+            "Drift: %d/%d features drifted", report.n_drifted, report.n_features
+        )
 
     def _write_metrics(self) -> None:
         self.metrics["generated_at"] = datetime.utcnow().isoformat() + "Z"

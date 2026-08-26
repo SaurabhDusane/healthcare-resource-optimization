@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Dict
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -79,6 +79,7 @@ class SyntheticDataGenerator:
         n_records: int = 20000,
         start_date: str = "2023-01-01",
         end_date: str = "2023-12-31",
+        sites: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """
         Generate patient-level ER visit records.
@@ -87,9 +88,12 @@ class SyntheticDataGenerator:
             n_records: Number of visits to generate.
             start_date: First possible visit date (inclusive).
             end_date: Last possible visit date (inclusive).
+            sites: Optional hospital-site identifiers. When given, each record
+                gets a ``SITE`` column, with uneven per-site volume and a small
+                per-site shift in high-acuity rate (multi-hospital simulation).
 
         Returns:
-            DataFrame with NHAMCS-style columns.
+            DataFrame with NHAMCS-style columns (plus ``SITE`` when ``sites`` set).
         """
         self.logger.info("Generating %d synthetic ER visits...", n_records)
 
@@ -135,17 +139,29 @@ class SyntheticDataGenerator:
 
         diag1 = self.rng.choice(DIAGNOSES, size=n_records)
 
-        df = pd.DataFrame(
-            {
-                "VDATE": visit_dates.strftime("%Y-%m-%d"),
-                "AGE": age,
-                "SEX": sex,
-                "ARRTIME": arrtime,
-                "IMMEDR": immedr,
-                "PAYTYPER": paytyper,
-                "DIAG1": diag1,
-            }
-        )
+        columns = {
+            "VDATE": visit_dates.strftime("%Y-%m-%d"),
+            "AGE": age,
+            "SEX": sex,
+            "ARRTIME": arrtime,
+            "IMMEDR": immedr,
+            "PAYTYPER": paytyper,
+            "DIAG1": diag1,
+        }
+
+        if sites:
+            # Uneven site volumes; a couple of higher-acuity (tertiary) centers.
+            weights = np.linspace(1.0, 2.0, len(sites))
+            site_probs = weights / weights.sum()
+            site = self.rng.choice(sites, size=n_records, p=site_probs)
+            # Larger-index sites bump some low-acuity visits up to high-acuity.
+            site_rank = {s: i / max(len(sites) - 1, 1) for i, s in enumerate(sites)}
+            bump = np.array([site_rank[s] for s in site]) * 0.15
+            flip = (columns["IMMEDR"] >= 3) & (self.rng.random(n_records) < bump)
+            columns["IMMEDR"] = np.where(flip, 2, columns["IMMEDR"])
+            columns["SITE"] = site
+
+        df = pd.DataFrame(columns)
         df = df.sort_values("VDATE").reset_index(drop=True)
         self.logger.info("Generated %d ER visit records", len(df))
         return df

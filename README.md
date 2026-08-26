@@ -64,6 +64,8 @@ healthcare-resource-optimization/
 │   ├── analysis/       # Statistics, EDA, sentiment
 │   ├── alerts/         # Early-warning system + notifiers
 │   ├── api/            # FastAPI service + HTML dashboard
+│   ├── monitoring/     # Data-drift monitoring (PSI + KS)
+│   ├── orchestration/  # Flow runner (+ optional Prefect adapter)
 │   ├── pipeline.py     # Pipeline orchestration
 │   └── utils/          # Logging, experiment tracking, helpers
 ├── Dockerfile          # API container image
@@ -201,6 +203,7 @@ python -m src.data_processing.dashboard_prep
 - [**Scraping Methodology**](docs/scraping_methodology.md): Ethical considerations and technical approach
 - [**Model Documentation**](docs/model_documentation.md): Algorithms, evaluation, reproducibility
 - [**Dashboard & API Guide**](docs/dashboard_implementation.md): API endpoints, BI exports, Docker
+- [**Advanced Features**](docs/advanced_features.md): Neural forecaster, drift monitoring, multi-site, orchestration
 - [**Executive Summary**](reports/executive_summary.md): Business-focused findings
 
 ## Skills Demonstrated
@@ -236,9 +239,15 @@ This project showcases:
 - [x] Early-warning system with pluggable Slack/email notifications
 - [x] Dockerfile + docker-compose
 
-**Phase 4 — Advanced capabilities & scale**
-- [ ] Additional data sources (weather, local events); Airflow/Prefect orchestration
-- [ ] Multi-hospital generalization; A/B testing framework; drift monitoring
+**Phase 4 — Advanced capabilities & scale** ✅ _(delivered)_
+- [x] Neural (MLP) forecaster benchmarked against ARIMA in the backtest
+- [x] Data-drift monitoring (PSI + KS) with reference profiles, wired into the pipeline
+- [x] Multi-hospital (multi-site) data support + per-site dashboard table
+- [x] Optional Prefect orchestration (dependency-free flow runner + Prefect adapter)
+- [ ] LSTM / Transformer forecaster _(documented `torch` extension point — kept optional)_
+- [ ] A/B testing framework for interventions _(future)_
+
+See the [Advanced Features guide](docs/advanced_features.md) for details.
 
 ## Acknowledgments
 
