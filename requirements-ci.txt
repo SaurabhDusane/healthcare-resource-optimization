@@ -24,6 +24,11 @@ beautifulsoup4==4.12.2
 matplotlib==3.8.2
 seaborn==0.13.0
 
+# API service (Phase 3)
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+httpx==0.26.0
+
 # Utilities
 python-dotenv==1.0.0
 pyyaml==6.0.1

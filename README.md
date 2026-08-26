@@ -59,11 +59,15 @@ healthcare-resource-optimization/
 ├── src/
 │   ├── data/           # Synthetic data generator
 │   ├── scrapers/       # CDC / Reddit / Twitter scrapers
-│   ├── data_processing/# Cleaning, feature engineering, validation
+│   ├── data_processing/# Cleaning, feature engineering, dashboard export
 │   ├── modeling/       # Forecasting + classification models
 │   ├── analysis/       # Statistics, EDA, sentiment
+│   ├── alerts/         # Early-warning system + notifiers
+│   ├── api/            # FastAPI service + HTML dashboard
 │   ├── pipeline.py     # Pipeline orchestration
-│   └── utils/          # Logging, helpers, constants
+│   └── utils/          # Logging, experiment tracking, helpers
+├── Dockerfile          # API container image
+├── docker-compose.yml  # One-command API deployment
 ├── tests/              # Pytest suite
 ├── models/             # Trained ML models (git-ignored contents)
 ├── visualizations/     # Charts and dashboard screenshots
@@ -147,10 +151,19 @@ jupyter notebook
 # Open notebooks/ and run in sequence (01-09)
 ```
 
-**Generate Dashboard Data:** _(planned — Phase 3)_
-A `dashboard_prep.py` export step for Tableau/Power BI is on the roadmap. In the
-meantime, `python main.py` already writes Tableau-ready tables to
-`data/processed/` (`features.csv`, `daily_visits.csv`).
+**Serve the API + dashboard:**
+```bash
+uvicorn src.api.app:app --reload   # http://127.0.0.1:8000  (or: docker compose up --build)
+```
+Endpoints: `/` (HTML dashboard), `/forecast?days=14`, `/alerts?days=14`,
+`/predict/acuity` (POST), `/metrics`, `/health`. See the
+[Dashboard & API Guide](docs/dashboard_implementation.md).
+
+**Generate BI dashboard tables:**
+```bash
+python -m src.data_processing.dashboard_prep
+# tidy CSVs in data/processed/dashboard/ for Tableau / Power BI
+```
 
 ## Key Results
 
@@ -187,8 +200,8 @@ meantime, `python main.py` already writes Tableau-ready tables to
 - [**Data Dictionary**](docs/data_dictionary.md): Complete variable definitions
 - [**Scraping Methodology**](docs/scraping_methodology.md): Ethical considerations and technical approach
 - [**Model Documentation**](docs/model_documentation.md): Algorithms, evaluation, reproducibility
+- [**Dashboard & API Guide**](docs/dashboard_implementation.md): API endpoints, BI exports, Docker
 - [**Executive Summary**](reports/executive_summary.md): Business-focused findings
-- **Dashboard Guide** _(planned — Phase 3)_: Step-by-step Tableau setup
 
 ## Skills Demonstrated
 
@@ -217,9 +230,11 @@ This project showcases:
 - [x] Richer evaluation: ROC-AUC, confusion matrix, saved plots and JSON reports
 - [ ] Deep learning models (LSTM, Transformer) for forecasting _(moved to Phase 4)_
 
-**Phase 3 — Product layer**
-- [ ] Streamlit/FastAPI app + REST prediction endpoint; `dashboard_prep.py`
-- [ ] Dockerfile + docker-compose; automated email/Slack alerts for demand spikes
+**Phase 3 — Product layer** ✅ _(delivered)_
+- [x] FastAPI service (forecast, acuity prediction, alerts, metrics) + HTML dashboard
+- [x] `dashboard_prep.py` exporting BI-ready tables for Tableau/Power BI
+- [x] Early-warning system with pluggable Slack/email notifications
+- [x] Dockerfile + docker-compose
 
 **Phase 4 — Advanced capabilities & scale**
 - [ ] Additional data sources (weather, local events); Airflow/Prefect orchestration

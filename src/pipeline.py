@@ -32,6 +32,7 @@ from sklearn.model_selection import train_test_split
 
 from src.data.generate_synthetic_data import SyntheticDataGenerator
 from src.data_processing.cleaning import DataCleaner
+from src.data_processing.dashboard_prep import DashboardPrep
 from src.data_processing.feature_engineering import FeatureEngineer
 from src.modeling.classification_model import ClassificationModel
 from src.modeling.model_evaluator import ModelEvaluator
@@ -112,6 +113,7 @@ class Pipeline:
         self._train_acuity_model(features)
         daily = self._summarize_timeseries(features)
         self._forecast(daily)
+        self._export_dashboard(features)
         self._write_metrics()
 
         self.logger.info("=== Pipeline complete ===")
@@ -201,6 +203,10 @@ class Pipeline:
 
         model_path = os.path.join(self.config.models_dir, "acuity_model.joblib")
         model.save_model(model_path)
+        # Persist the feature order so the API can build inference rows correctly.
+        features_path = os.path.join(self.config.models_dir, "acuity_features.json")
+        with open(features_path, "w", encoding="utf-8") as fh:
+            json.dump(available, fh)
 
         importance = model.get_feature_importance()
         top_features = (
@@ -295,6 +301,14 @@ class Pipeline:
             metrics=result["best_metrics"],
             tags={"task": "forecasting", "best_model": result["best_model"]},
         )
+
+    def _export_dashboard(self, features: pd.DataFrame) -> None:
+        self.logger.info("Exporting BI-ready dashboard tables")
+        prep = DashboardPrep(
+            output_dir=os.path.join(self.config.processed_dir, "dashboard")
+        )
+        paths = prep.export(features)
+        self.metrics["dashboard_tables"] = paths
 
     def _write_metrics(self) -> None:
         self.metrics["generated_at"] = datetime.utcnow().isoformat() + "Z"

@@ -15,6 +15,7 @@ data/processed/**/*.csv
 models/*.pkl
 models/*.h5
 models/*.joblib
+models/*.json
 
 # Generated run artifacts / visualizations (keep the dirs via .gitkeep)
 reports/pipeline_metrics.json

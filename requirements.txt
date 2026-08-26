@@ -26,6 +26,11 @@ plotly==5.18.0
 seaborn==0.13.0
 matplotlib==3.8.2
 
+# API service (Phase 3)
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+httpx==0.26.0
+
 # Utilities
 python-dotenv==1.0.0
 schedule==1.2.0
