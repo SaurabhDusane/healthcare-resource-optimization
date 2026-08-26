@@ -116,7 +116,9 @@ Outputs:
 - `data/raw/*.csv` — generated raw datasets
 - `data/processed/*.csv` — cleaned + feature-engineered tables and daily-visit series
 - `models/acuity_model.joblib` — trained classifier
-- `reports/pipeline_metrics.json` — reproducible run metrics
+- `reports/pipeline_metrics.json` — reproducible run metrics (classifier + forecast backtest)
+- `reports/experiments/*.json` — per-run experiment log (params, metrics, git SHA)
+- `visualizations/*.png` — confusion matrix, ROC curve, feature importance
 
 Handy shortcuts (see `make help`):
 
@@ -184,8 +186,8 @@ meantime, `python main.py` already writes Tableau-ready tables to
 
 - [**Data Dictionary**](docs/data_dictionary.md): Complete variable definitions
 - [**Scraping Methodology**](docs/scraping_methodology.md): Ethical considerations and technical approach
+- [**Model Documentation**](docs/model_documentation.md): Algorithms, evaluation, reproducibility
 - [**Executive Summary**](reports/executive_summary.md): Business-focused findings
-- **Model Documentation** _(planned — Phase 2)_: Algorithm selection, tuning, validation
 - **Dashboard Guide** _(planned — Phase 3)_: Step-by-step Tableau setup
 
 ## Skills Demonstrated
@@ -209,10 +211,11 @@ This project showcases:
 - [x] CI (GitHub Actions: black, pylint, pytest, pipeline smoke test) + pre-commit
 - [x] Expanded test suite (data generation, cleaning, merge, modeling, pipeline)
 
-**Phase 2 — Modeling depth**
-- [ ] Complete Prophet/ARIMA forecasters with train/val/test splits and saved artifacts
-- [ ] Experiment tracking so metrics are reproducible; `docs/model_documentation.md`
-- [ ] Deep learning models (LSTM, Transformer) for forecasting
+**Phase 2 — Modeling depth** ✅ _(delivered)_
+- [x] ARIMA + seasonal-naive forecasters with a chronological backtest (Prophet optional)
+- [x] Experiment tracking (`reports/experiments/`) and `docs/model_documentation.md`
+- [x] Richer evaluation: ROC-AUC, confusion matrix, saved plots and JSON reports
+- [ ] Deep learning models (LSTM, Transformer) for forecasting _(moved to Phase 4)_
 
 **Phase 3 — Product layer**
 - [ ] Streamlit/FastAPI app + REST prediction endpoint; `dashboard_prep.py`
