@@ -152,7 +152,9 @@ python src/scrapers/scheduler.py
 **Execute Analysis:**
 ```bash
 jupyter notebook
-# Open notebooks/ and run in sequence (01-09)
+# notebooks/01_data_acquisition_guide.ipynb   — data sources & scraping
+# notebooks/02_modeling_and_forecasting.ipynb — run the pipeline, inspect models
+# notebooks/05_data_cleaning_eda.ipynb        — cleaning & exploratory analysis
 ```
 
 **Serve the API + dashboard:**
@@ -253,8 +255,10 @@ This project showcases:
 - [x] Data-drift monitoring (PSI + KS) with reference profiles, wired into the pipeline
 - [x] Multi-hospital (multi-site) data support + per-site dashboard table
 - [x] Optional Prefect orchestration (dependency-free flow runner + Prefect adapter)
+- [x] Model registry with versioning, production pointer, and rollback
+- [x] A/B testing framework for interventions (proportion z-test, Welch t-test, effect sizes)
+- [x] Enriched API dashboard with inline-SVG charts (visits trend + feature importance)
 - [ ] LSTM / Transformer forecaster _(documented `torch` extension point — kept optional)_
-- [ ] A/B testing framework for interventions _(future)_
 
 See the [Advanced Features guide](docs/advanced_features.md) for details.
 

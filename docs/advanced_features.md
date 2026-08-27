@@ -110,12 +110,48 @@ lightweight.
 
 ---
 
-## Summary of Phase 4 modules
+## 5. Model registry (versioning & rollback)
+
+`src/modeling/registry.py` — `ModelRegistry` versions trained models instead of
+overwriting them. Each pipeline run registers a new version under
+`models/registry/acuity/v<N>/` with the serialized estimator and a `meta.json`
+(metrics, params, timestamp, git SHA), and updates a `production` pointer.
+
+```python
+from src.modeling.registry import ModelRegistry
+reg = ModelRegistry()
+reg.list_versions("acuity")     # -> [1, 2, 3]
+reg.promote("acuity", 2)        # roll back production to v2
+model, meta = reg.load("acuity")  # load the production version
+```
+
+## 6. A/B testing (intervention evaluation)
+
+`src/analysis/ab_testing.py` — `ABTest` evaluates a two-arm experiment:
+
+- `proportion_test` — binary outcomes (e.g. non-urgent revisit rate) via a
+  two-proportion z-test, with Cohen's h.
+- `mean_test` — continuous outcomes (e.g. wait time) via Welch's t-test, with
+  Cohen's d.
+
+Each returns the effect, p-value, significance at `alpha`, and a plain-language
+decision — the statistical backbone for testing staffing or outreach changes.
+
+## 7. Enriched dashboard
+
+The API root (`GET /`) renders inline-SVG charts (recent daily-visit trend and
+top acuity predictors) directly from the run artifacts — no JS framework or
+extra dependency. A full Streamlit/React frontend is a natural next step; the
+same `/metrics`, `/forecast`, and `/alerts` endpoints back it.
+
+## Summary of advanced modules
 
 | capability            | module                                   | heavy dep? |
 |-----------------------|------------------------------------------|------------|
 | Neural forecaster     | `src/modeling/neural_forecaster.py`      | no (sklearn) |
 | Drift monitoring      | `src/monitoring/drift.py`                | no (scipy)   |
 | Multi-site data       | `src/data/generate_synthetic_data.py`    | no           |
+| Model registry        | `src/modeling/registry.py`               | no (joblib)  |
+| A/B testing           | `src/analysis/ab_testing.py`             | no (scipy)   |
 | Orchestration         | `src/orchestration/flow.py`              | optional (prefect) |
 | LSTM / TFT forecaster | _extension point_ (see §1)               | optional (torch)   |

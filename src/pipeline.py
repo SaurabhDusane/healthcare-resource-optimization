@@ -37,6 +37,7 @@ from src.data_processing.dashboard_prep import DashboardPrep
 from src.data_processing.feature_engineering import FeatureEngineer
 from src.modeling.classification_model import ClassificationModel
 from src.modeling.model_evaluator import ModelEvaluator
+from src.modeling.registry import ModelRegistry
 from src.modeling.time_series_forecaster import TimeSeriesForecaster
 from src.monitoring.drift import DriftMonitor
 from src.utils.experiment_tracker import ExperimentTracker
@@ -247,6 +248,18 @@ class Pipeline:
             )
 
         headline = {k: v for k, v in clf_metrics.items() if k != "confusion_matrix"}
+
+        # Register a versioned copy in the model registry (promote to production).
+        registry = ModelRegistry(
+            base_dir=os.path.join(self.config.models_dir, "registry")
+        )
+        registry_version = registry.register(
+            model.model,
+            name="acuity",
+            metrics=headline,
+            params={"model_type": self.config.model_type, "features": available},
+        )
+
         self.metrics["acuity_model"] = {
             "model_type": self.config.model_type,
             "n_train": int(len(X_train)),
@@ -257,6 +270,7 @@ class Pipeline:
             "top_features": top_features,
             "tuning": tuning,
             "model_path": model_path,
+            "registry_version": registry_version,
         }
         self.logger.info("Acuity model metrics: %s", headline)
 

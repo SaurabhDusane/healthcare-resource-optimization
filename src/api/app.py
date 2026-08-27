@@ -290,6 +290,14 @@ def _render_dashboard(store: ArtifactStore) -> str:
     ts = metrics.get("timeseries", {})
     forecast = metrics.get("forecast", {})
     best = forecast.get("best_metrics", {})
+    top_features = metrics.get("acuity_model", {}).get("top_features", [])
+
+    # Recent daily-visit history for the line chart (best-effort).
+    try:
+        daily = store.daily_visits()
+        visit_values = [float(v) for v in daily["visits"].tolist()[-60:]]
+    except HTTPException:
+        visit_values = []
 
     def kpi(label: str, value: object) -> str:
         return (
@@ -310,11 +318,16 @@ def _render_dashboard(store: ArtifactStore) -> str:
         ]
     )
 
+    visits_chart = _svg_line_chart(visit_values, "Daily ER visits (last 60 days)")
+    importance_chart = _svg_bar_chart(top_features, "Top acuity predictors")
+
     return f"""<html><head><title>Healthcare Resource Optimization</title></head>
 <body style='font-family:sans-serif;max-width:900px;margin:2rem auto;color:#1f2933'>
   <h1>Healthcare Resource Optimization</h1>
   <p style='color:#5b6472'>Live view of the latest pipeline run (synthetic data).</p>
   <div style='display:flex;flex-wrap:wrap'>{cards}</div>
+  <div style='margin:1.5rem .4rem'>{visits_chart}</div>
+  <div style='margin:1.5rem .4rem'>{importance_chart}</div>
   <h2>API</h2>
   <ul>
     <li><a href='/forecast?days=14'>/forecast?days=14</a> - 14-day demand forecast</li>
@@ -325,6 +338,59 @@ def _render_dashboard(store: ArtifactStore) -> str:
   </ul>
   <p style='color:#8a94a6;font-size:.85rem'>Metrics are illustrative, from synthetic data.</p>
 </body></html>"""
+
+
+def _svg_line_chart(
+    values: List[float], title: str, width: int = 640, height: int = 160
+) -> str:
+    """Render a simple inline-SVG line chart. Dependency-free."""
+    if len(values) < 2:
+        return f"<p style='color:#8a94a6'>{title}: not enough data yet.</p>"
+    pad = 24
+    lo, hi = min(values), max(values)
+    span = (hi - lo) or 1.0
+    n = len(values)
+    pts = []
+    for i, v in enumerate(values):
+        x = pad + (width - 2 * pad) * i / (n - 1)
+        y = height - pad - (height - 2 * pad) * (v - lo) / span
+        pts.append(f"{x:.1f},{y:.1f}")
+    polyline = " ".join(pts)
+    return (
+        f"<div><div style='font-size:.85rem;color:#5b6472;margin-bottom:.3rem'>{title}</div>"
+        f"<svg width='100%' viewBox='0 0 {width} {height}' role='img' "
+        f"style='background:#f5f7fa;border-radius:10px'>"
+        f"<polyline fill='none' stroke='#2f6fed' stroke-width='2' points='{polyline}'/>"
+        f"<text x='{pad}' y='{pad - 6}' font-size='11' fill='#8a94a6'>max {hi:.0f}</text>"
+        f"<text x='{pad}' y='{height - 6}' font-size='11' fill='#8a94a6'>min {lo:.0f}</text>"
+        f"</svg></div>"
+    )
+
+
+def _svg_bar_chart(
+    items: List[Dict], title: str, width: int = 640, bar_h: int = 22
+) -> str:
+    """Render a horizontal inline-SVG bar chart from [{feature, importance}]."""
+    rows = [it for it in items if "importance" in it and "feature" in it]
+    if not rows:
+        return f"<p style='color:#8a94a6'>{title}: not available.</p>"
+    max_imp = max(float(r["importance"]) for r in rows) or 1.0
+    label_w = 150
+    height = bar_h * len(rows) + 10
+    bars = []
+    for i, r in enumerate(rows):
+        y = 5 + i * bar_h
+        w = (width - label_w - 20) * float(r["importance"]) / max_imp
+        label = str(r["feature"])[:20]
+        bars.append(
+            f"<text x='0' y='{y + 15}' font-size='12' fill='#1f2933'>{label}</text>"
+            f"<rect x='{label_w}' y='{y + 3}' width='{w:.1f}' height='{bar_h - 8}' "
+            f"rx='3' fill='#2f6fed'/>"
+        )
+    return (
+        f"<div><div style='font-size:.85rem;color:#5b6472;margin-bottom:.3rem'>{title}</div>"
+        f"<svg width='100%' viewBox='0 0 {width} {height}' role='img'>{''.join(bars)}</svg></div>"
+    )
 
 
 # Module-level app for `uvicorn src.api.app:app`.
