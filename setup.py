@@ -3,8 +3,19 @@ from setuptools import setup, find_packages
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-with open("requirements.txt", "r", encoding="utf-8") as fh:
-    requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
+
+def _parse_requirements(path):
+    """Read a requirements file, ignoring blank lines and (inline) comments."""
+    reqs = []
+    with open(path, "r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.split("#", 1)[0].strip()  # drop inline/full-line comments
+            if line:
+                reqs.append(line)
+    return reqs
+
+
+requirements = _parse_requirements("requirements.txt")
 
 setup(
     name="healthcare-resource-optimization",

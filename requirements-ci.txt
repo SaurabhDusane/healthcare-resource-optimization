@@ -2,39 +2,40 @@
 # data. Excludes heavy / network-only optional packages (prophet, selenium,
 # snscrape, spacy) that are not required to run the test suite or main.py.
 #
-# For the full feature set (live scraping, Prophet forecasting, spaCy NLP)
-# install requirements.txt instead.
+# Compatible lower bounds (`>=`) so a clean install resolves to a current stack
+# on modern Python while guaranteeing a known-good minimum. For the full feature
+# set (live scraping, Prophet forecasting, spaCy NLP) install requirements.txt.
 
 # Data processing
-pandas==2.1.3
-numpy==1.26.2
-scipy==1.11.4
+pandas>=2.1
+numpy>=1.26
+scipy>=1.11
 
 # Machine learning
-scikit-learn==1.3.2
-statsmodels==0.14.0
-xgboost==2.0.2
+scikit-learn>=1.3
+statsmodels>=0.14
+xgboost>=2.0
 
 # NLP (light) + scraping core used by CDC scraper / sentiment utilities
-textblob==0.17.1
-requests==2.31.0
-beautifulsoup4==4.12.2
+textblob>=0.17
+requests>=2.31
+beautifulsoup4>=4.12
 
 # Visualization (imported by model_evaluator / eda_functions)
-matplotlib==3.8.2
-seaborn==0.13.0
+matplotlib>=3.8
+seaborn>=0.13
 
 # API service (Phase 3)
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-httpx==0.26.0
+fastapi>=0.109
+uvicorn[standard]>=0.27
+httpx>=0.26
 
 # Utilities
-python-dotenv==1.0.0
-pyyaml==6.0.1
-joblib==1.3.2
+python-dotenv>=1.0
+pyyaml>=6.0
+joblib>=1.3
 
 # Development / QA
-pytest==7.4.3
-black==23.12.0
-pylint==3.0.3
+pytest>=7.4
+black>=23.12
+pylint>=3.0

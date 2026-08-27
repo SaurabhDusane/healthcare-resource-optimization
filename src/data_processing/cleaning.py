@@ -97,7 +97,10 @@ class DataCleaner:
                 median_val = df[col].median()
                 df[col] = df[col].fillna(median_val)
 
-        categorical_cols = df.select_dtypes(include=["object", "category"]).columns
+        # Select non-numeric columns for mode imputation. Using ``exclude``
+        # avoids the pandas 3 deprecation where ``include=["object"]`` also
+        # implicitly pulls in the new dedicated string dtype.
+        categorical_cols = df.select_dtypes(exclude=[np.number]).columns
         for col in categorical_cols:
             if df[col].isnull().sum() > 0:
                 mode_val = df[col].mode()[0] if not df[col].mode().empty else "Unknown"
