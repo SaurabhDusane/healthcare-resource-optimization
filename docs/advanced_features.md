@@ -144,6 +144,35 @@ top acuity predictors) directly from the run artifacts — no JS framework or
 extra dependency. A full Streamlit/React frontend is a natural next step; the
 same `/metrics`, `/forecast`, and `/alerts` endpoints back it.
 
+## 8. Simulation scenario presets
+
+`src/data/scenarios.py` turns synthetic data's key advantage — controllable
+ground truth — into one-flag experiments. Each preset is a small set of
+deterministic overrides on the generator, so a whole "what-if" run is a single
+argument rather than manual parameter edits:
+
+```bash
+python main.py --scenario flu_surge        # severe flu season (more winter demand + acuity)
+python main.py --scenario outbreak_spike   # a sharp ~month-long mid-year spike
+python main.py --scenario mild_winter      # weak seasonality
+python main.py --scenario high_uninsured   # higher uninsured share
+python -m src.data.generate_synthetic_data --scenario outbreak_spike
+```
+
+| preset           | what it models                                             |
+|------------------|-----------------------------------------------------------|
+| `baseline`       | default behavior (byte-identical to the generator default)|
+| `flu_surge`      | strong winter seasonality + higher acuity                 |
+| `outbreak_spike` | a demand-multiplier window (fires the early-warning alerts)|
+| `mild_winter`    | reduced flu-season intensity                              |
+| `high_uninsured` | larger uninsured/self-pay share                           |
+
+The run records its scenario under `metrics["scenario"]`, and `baseline`
+reproduces the original output exactly — so existing runs are unchanged. These
+are precisely the situations real, fixed history won't hand you on demand: a rare
+event, a counterfactual season, or a shifted population for stress-testing the
+drift monitor and alerting.
+
 ## Summary of advanced modules
 
 | capability            | module                                   | heavy dep? |

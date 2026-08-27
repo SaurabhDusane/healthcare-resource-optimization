@@ -25,6 +25,8 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from src.data.scenarios import Scenario, get_scenario, list_scenarios
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -80,6 +82,7 @@ class SyntheticDataGenerator:
         start_date: str = "2023-01-01",
         end_date: str = "2023-12-31",
         sites: Optional[List[str]] = None,
+        scenario: Optional[Scenario] = None,
     ) -> pd.DataFrame:
         """
         Generate patient-level ER visit records.
@@ -91,11 +94,17 @@ class SyntheticDataGenerator:
             sites: Optional hospital-site identifiers. When given, each record
                 gets a ``SITE`` column, with uneven per-site volume and a small
                 per-site shift in high-acuity rate (multi-hospital simulation).
+            scenario: Optional :class:`~src.data.scenarios.Scenario` preset that
+                reshapes demand/acuity (flu surge, outbreak spike, etc.). The
+                ``baseline`` preset reproduces the default behavior exactly.
 
         Returns:
             DataFrame with NHAMCS-style columns (plus ``SITE`` when ``sites`` set).
         """
-        self.logger.info("Generating %d synthetic ER visits...", n_records)
+        sc = scenario or get_scenario("baseline")
+        self.logger.info(
+            "Generating %d synthetic ER visits (scenario=%s)...", n_records, sc.name
+        )
 
         start = pd.Timestamp(start_date)
         end = pd.Timestamp(end_date)
@@ -103,12 +112,17 @@ class SyntheticDataGenerator:
         days = np.arange(n_days)
         dates = start + pd.to_timedelta(days, unit="D")
 
-        # Daily arrival intensity: flu-season seasonality + weekend dip.
+        # Daily arrival intensity: flu-season seasonality + weekend dip, with
+        # scenario-controlled magnitudes and an optional outbreak spike window.
         month = dates.month.to_numpy()
         dow = dates.dayofweek.to_numpy()
         flu_season = np.isin(month, [10, 11, 12, 1, 2, 3]).astype(float)
         weekend = (dow >= 5).astype(float)
-        daily_weight = 1.0 + 0.35 * flu_season - 0.15 * weekend
+        daily_weight = 1.0 + sc.flu_intensity * flu_season - sc.weekend_factor * weekend
+        if sc.outbreak is not None:
+            ob_start, ob_end, ob_mult = sc.outbreak
+            spike = (days >= ob_start) & (days <= ob_end)
+            daily_weight = np.where(spike, daily_weight * ob_mult, daily_weight)
         daily_weight = np.clip(daily_weight, 0.1, None)
         daily_prob = daily_weight / daily_weight.sum()
 
@@ -125,8 +139,8 @@ class SyntheticDataGenerator:
         ).astype(int)
         sex = self.rng.integers(1, 3, size=n_records)
 
-        # Insurance: ~18% uninsured (self-pay / no charge).
-        uninsured = self.rng.random(n_records) < 0.18
+        # Insurance: scenario-controlled uninsured/self-pay share.
+        uninsured = self.rng.random(n_records) < sc.uninsured_rate
         paytyper = np.where(
             uninsured,
             self.rng.choice([5, 6], size=n_records),
@@ -135,8 +149,10 @@ class SyntheticDataGenerator:
 
         # Acuity is driven by observable features (age, arrival hour, calendar,
         # insurance) so a model trained on those features has real, learnable
-        # structure — not noise.
-        immedr = self._sample_acuity(visit_dates, arrival_hour, uninsured, age)
+        # structure — not noise. The scenario can shift overall acuity.
+        immedr = self._sample_acuity(
+            visit_dates, arrival_hour, uninsured, age, acuity_shift=sc.acuity_shift
+        )
 
         diag1 = self.rng.choice(DIAGNOSES, size=n_records)
 
@@ -188,6 +204,7 @@ class SyntheticDataGenerator:
         arrival_hour: np.ndarray,
         uninsured: np.ndarray,
         age: np.ndarray,
+        acuity_shift: float = 0.0,
     ) -> np.ndarray:
         """Sample triage acuity (1=emergent .. 5=non-urgent)."""
         n = len(visit_dates)
@@ -207,6 +224,7 @@ class SyntheticDataGenerator:
         p_high = np.where(monday_evening, p_high + 0.15, p_high)
         p_high = np.where(np.isin(month, [12, 1, 2]), p_high + 0.08, p_high)
         p_high = np.where(uninsured, p_high - 0.12, p_high)  # uninsured skew non-urgent
+        p_high = p_high + acuity_shift  # scenario-wide acuity shift
         p_high = np.clip(p_high, 0.03, 0.97)
 
         is_high = self.rng.random(n) < p_high
@@ -294,21 +312,26 @@ class SyntheticDataGenerator:
     # ------------------------------------------------------------------ #
     # Convenience                                                        #
     # ------------------------------------------------------------------ #
-    def generate_all(self, n_visits: int = 20000) -> Dict[str, pd.DataFrame]:
+    def generate_all(
+        self, n_visits: int = 20000, scenario: Optional[Scenario] = None
+    ) -> Dict[str, pd.DataFrame]:
         """Generate every dataset and return them keyed by name."""
         return {
-            "er_visits": self.generate_er_visits(n_records=n_visits),
+            "er_visits": self.generate_er_visits(n_records=n_visits, scenario=scenario),
             "cdc_news": self.generate_cdc_news(),
             "reddit_posts": self.generate_reddit_posts(),
             "twitter_posts": self.generate_twitter_posts(),
         }
 
     def save_all(
-        self, output_dir: str = "data/raw", n_visits: int = 20000
+        self,
+        output_dir: str = "data/raw",
+        n_visits: int = 20000,
+        scenario: Optional[Scenario] = None,
     ) -> Dict[str, str]:
         """Generate all datasets and write them to CSV files."""
         os.makedirs(output_dir, exist_ok=True)
-        datasets = self.generate_all(n_visits=n_visits)
+        datasets = self.generate_all(n_visits=n_visits, scenario=scenario)
         paths: Dict[str, str] = {}
         for name, df in datasets.items():
             path = os.path.join(output_dir, f"{name}.csv")
@@ -334,10 +357,20 @@ def main() -> None:
     parser.add_argument(
         "--seed", type=int, default=42, help="Random seed for reproducibility."
     )
+    parser.add_argument(
+        "--scenario",
+        default="baseline",
+        choices=list_scenarios(),
+        help="Simulation scenario preset (default: baseline).",
+    )
     args = parser.parse_args()
 
     generator = SyntheticDataGenerator(seed=args.seed)
-    paths = generator.save_all(output_dir=args.output_dir, n_visits=args.visits)
+    paths = generator.save_all(
+        output_dir=args.output_dir,
+        n_visits=args.visits,
+        scenario=get_scenario(args.scenario),
+    )
     print("Synthetic data written:")
     for name, path in paths.items():
         print(f"  {name:14s} -> {path}")

@@ -7,6 +7,10 @@ informal (pre-1.0).
 ## [Unreleased]
 
 ### Added
+- **Simulation scenario presets** (`src/data/scenarios.py`): named what-if
+  presets (`flu_surge`, `outbreak_spike`, `mild_winter`, `high_uninsured`) that
+  reshape the synthetic generator via `--scenario`. `baseline` reproduces the
+  default output exactly; the run records its scenario in `metrics["scenario"]`.
 - **Runtime configuration** (`src/config.py`): a single, env-driven `Settings`
   object for artifact paths, API key, rate limit, and server bind.
 - **API hardening**: optional `X-API-Key` authentication (enabled by setting
