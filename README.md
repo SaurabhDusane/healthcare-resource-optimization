@@ -1,10 +1,20 @@
 # Healthcare Resource Optimization Analytics Platform
 
-![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
+![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
+![CI](https://github.com/saurabhdusane/healthcare-resource-optimization/actions/workflows/ci.yml/badge.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 > An end-to-end data analytics platform combining web scraping, statistical analysis, machine learning, and interactive dashboards to optimize healthcare resource allocation and predict emergency room demand patterns.
+
+> **Reproducibility note.** The repository ships a **synthetic data generator** so
+> the full pipeline runs end-to-end with **no credentials and no network access**
+> (`python main.py`). The case-study figures quoted below (e.g. "91% forecast
+> accuracy", scraped-record counts) are **illustrative results from the original
+> NHAMCS-based study and are not reproduced by the synthetic demo** — the synthetic
+> pipeline reports its own reproducible metrics in `reports/pipeline_metrics.json`
+> (acuity ROC-AUC ≈ 0.66–0.69; ARIMA forecast MAE ≈ 3.2/day). To run on a real
+> NHAMCS-format CSV instead, use `python main.py --data-csv <path>`.
 
 ## Project Overview
 
@@ -29,7 +39,7 @@ This project demonstrates advanced data analytics capabilities by analyzing 100,
 ## Technologies Used
 
 **Programming & Libraries:**
-- Python 3.9+ (pandas, numpy, scipy, scikit-learn)
+- Python 3.10+ (pandas, numpy, scipy, scikit-learn)
 - Web Scraping (BeautifulSoup, Selenium, PRAW, snscrape)
 - Machine Learning (Prophet, XGBoost, ARIMA)
 - NLP (TextBlob, spaCy)
@@ -44,13 +54,30 @@ This project demonstrates advanced data analytics capabilities by analyzing 100,
 
 ```
 healthcare-resource-optimization/
-├── data/               # Raw and processed datasets
+├── main.py             # End-to-end pipeline entry point (synthetic data)
+├── Makefile            # Common tasks: data, pipeline, test, lint, check
+├── data/               # Raw and processed datasets (git-ignored contents)
 ├── notebooks/          # Jupyter notebooks for analysis
-├── src/               # Source code (scrapers, models, utilities)
-├── models/            # Trained ML models
-├── visualizations/    # Charts and dashboard screenshots
-├── reports/           # Executive summaries and technical docs
-└── docs/              # Comprehensive documentation
+├── src/
+│   ├── data/           # Synthetic data generator
+│   ├── scrapers/       # CDC / Reddit / Twitter scrapers
+│   ├── data_processing/# Cleaning, feature engineering, dashboard export
+│   ├── modeling/       # Forecasting + classification models
+│   ├── analysis/       # Statistics, EDA, sentiment
+│   ├── alerts/         # Early-warning system + notifiers
+│   ├── api/            # FastAPI service + HTML dashboard
+│   ├── monitoring/     # Data-drift monitoring (PSI + KS)
+│   ├── orchestration/  # Flow runner (+ optional Prefect adapter)
+│   ├── pipeline.py     # Pipeline orchestration
+│   └── utils/          # Logging, experiment tracking, helpers
+├── Dockerfile          # API container image
+├── docker-compose.yml  # One-command API deployment
+├── tests/              # Pytest suite
+├── models/             # Trained ML models (git-ignored contents)
+├── visualizations/     # Charts and dashboard screenshots
+├── reports/            # Executive summaries and run metrics
+├── docs/               # Documentation
+└── .github/workflows/  # CI (lint, format, tests, pipeline smoke test)
 ```
 
 ## Quick Start
@@ -59,7 +86,7 @@ healthcare-resource-optimization/
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/healthcare-resource-optimization.git
+git clone https://github.com/saurabhdusane/healthcare-resource-optimization.git
 cd healthcare-resource-optimization
 ```
 
@@ -82,7 +109,34 @@ cp .env.example .env
 cp config/scraper_config.yaml.example config/scraper_config.yaml
 ```
 
-### Usage
+### Run end-to-end on synthetic data (no credentials required)
+
+The fastest way to see the whole pipeline work. It generates synthetic
+NHAMCS-like ER visits plus CDC/Reddit/Twitter samples, then cleans,
+feature-engineers, trains an acuity classifier, and writes artifacts:
+
+```bash
+pip install -r requirements-ci.txt   # lightweight subset, no scraping deps
+python main.py                        # or: make pipeline
+```
+
+Outputs:
+- `data/raw/*.csv` — generated raw datasets
+- `data/processed/*.csv` — cleaned + feature-engineered tables and daily-visit series
+- `models/acuity_model.joblib` — trained classifier
+- `reports/pipeline_metrics.json` — reproducible run metrics (classifier + forecast backtest)
+- `reports/experiments/*.json` — per-run experiment log (params, metrics, git SHA)
+- `visualizations/*.png` — confusion matrix, ROC curve, feature importance
+
+Handy shortcuts (see `make help`):
+
+```bash
+make data       # only generate synthetic datasets
+make test       # run the test suite
+make check      # format-check + lint + tests (mirrors CI)
+```
+
+### Usage (live data)
 
 **Run Web Scrapers:**
 ```bash
@@ -98,13 +152,28 @@ python src/scrapers/scheduler.py
 **Execute Analysis:**
 ```bash
 jupyter notebook
-# Open notebooks/ and run in sequence (01-09)
+# notebooks/01_data_acquisition_guide.ipynb   — data sources & scraping
+# notebooks/02_modeling_and_forecasting.ipynb — run the pipeline, inspect models
+# notebooks/05_data_cleaning_eda.ipynb        — cleaning & exploratory analysis
 ```
 
-**Generate Dashboard Data:**
+**Serve the API + dashboard:**
 ```bash
-python src/data_processing/dashboard_prep.py
-# Output files in data/processed/ ready for Tableau
+uvicorn src.api.app:app --reload   # http://127.0.0.1:8000  (or: docker compose up --build)
+```
+Endpoints: `/` (HTML dashboard), `/forecast?days=14`, `/alerts?days=14`,
+`/predict/acuity` (POST), `/metrics`, `/health`. See the
+[Dashboard & API Guide](docs/dashboard_implementation.md).
+
+The API is open by default (demo mode). For production, configure via environment
+(see `src/config.py`): set `API_KEY` to require an `X-API-Key` header on data
+endpoints, and `RATE_LIMIT_PER_MINUTE` to throttle per-client requests (429 when
+exceeded). `/health` stays open for liveness probes.
+
+**Generate BI dashboard tables:**
+```bash
+python -m src.data_processing.dashboard_prep
+# tidy CSVs in data/processed/dashboard/ for Tableau / Power BI
 ```
 
 ## Key Results
@@ -141,8 +210,9 @@ python src/data_processing/dashboard_prep.py
 
 - [**Data Dictionary**](docs/data_dictionary.md): Complete variable definitions
 - [**Scraping Methodology**](docs/scraping_methodology.md): Ethical considerations and technical approach
-- [**Model Documentation**](docs/model_documentation.md): Algorithm selection, tuning, validation
-- [**Dashboard Guide**](docs/dashboard_implementation.md): Step-by-step Tableau setup
+- [**Model Documentation**](docs/model_documentation.md): Algorithms, evaluation, reproducibility
+- [**Dashboard & API Guide**](docs/dashboard_implementation.md): API endpoints, BI exports, Docker
+- [**Advanced Features**](docs/advanced_features.md): Neural forecaster, drift monitoring, multi-site, orchestration
 - [**Executive Summary**](reports/executive_summary.md): Business-focused findings
 
 ## Skills Demonstrated
@@ -158,14 +228,39 @@ This project showcases:
  **Communication**: Executive reports, technical documentation, storytelling  
  **Software Engineering**: Modular code, version control, testing, logging  
 
-## Future Enhancements
+## Roadmap
 
-- [ ] Deploy real-time dashboard using Streamlit/Flask
-- [ ] Integrate additional data sources (weather, traffic, local events)
-- [ ] Implement deep learning models (LSTM, Transformer) for forecasting
-- [ ] Create automated email alerts for hospital administrators
-- [ ] Geographic expansion to multiple hospital systems
-- [ ] A/B testing framework for intervention strategies
+**Phase 1 — Foundation & reproducibility** ✅ _(delivered)_
+- [x] Synthetic data generator (run the pipeline with no credentials)
+- [x] End-to-end pipeline + CLI (`main.py`) and `Makefile`
+- [x] CI (GitHub Actions: black, pylint, pytest, pipeline smoke test) + pre-commit
+- [x] Expanded test suite (data generation, cleaning, merge, modeling, pipeline)
+
+**Phase 2 — Modeling depth** ✅ _(delivered)_
+- [x] ARIMA + seasonal-naive + neural-MLP forecasters with a chronological backtest (Prophet optional)
+- [x] Rolling-origin cross-validation and SARIMAX with exogenous scraped signals (early-warning thesis)
+- [x] Hyperparameter tuning (`RandomizedSearchCV`, `--tune`); learnable acuity signal (ROC-AUC ≈ 0.66–0.69)
+- [x] Real-data path (`--data-csv`) behind the same pipeline; experiment tracking + `docs/model_documentation.md`
+- [x] Richer evaluation: ROC-AUC, confusion matrix, saved plots and JSON reports
+- [ ] Deep learning models (LSTM, Transformer) for forecasting _(moved to Phase 4)_
+
+**Phase 3 — Product layer** ✅ _(delivered)_
+- [x] FastAPI service (forecast, acuity prediction, alerts, metrics) + HTML dashboard
+- [x] `dashboard_prep.py` exporting BI-ready tables for Tableau/Power BI
+- [x] Early-warning system with pluggable Slack/email notifications
+- [x] Dockerfile + docker-compose
+
+**Phase 4 — Advanced capabilities & scale** ✅ _(delivered)_
+- [x] Neural (MLP) forecaster benchmarked against ARIMA in the backtest
+- [x] Data-drift monitoring (PSI + KS) with reference profiles, wired into the pipeline
+- [x] Multi-hospital (multi-site) data support + per-site dashboard table
+- [x] Optional Prefect orchestration (dependency-free flow runner + Prefect adapter)
+- [x] Model registry with versioning, production pointer, and rollback
+- [x] A/B testing framework for interventions (proportion z-test, Welch t-test, effect sizes)
+- [x] Enriched API dashboard with inline-SVG charts (visits trend + feature importance)
+- [ ] LSTM / Transformer forecaster _(documented `torch` extension point — kept optional)_
+
+See the [Advanced Features guide](docs/advanced_features.md) for details.
 
 ## Acknowledgments
 

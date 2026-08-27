@@ -1,0 +1,25 @@
+[MAIN]
+# Optional third-party clients used only by the live scrapers. They are not
+# part of the CI dependency set (requirements-ci.txt), so pylint must not treat
+# their absence as an import error.
+ignored-modules=praw,
+                dotenv,
+                snscrape,
+                snscrape.modules,
+                snscrape.modules.twitter,
+                schedule,
+                prophet,
+                spacy,
+                prefect
+
+[FORMAT]
+max-line-length=100
+
+[MESSAGES CONTROL]
+# CI runs pylint with --errors-only; this section documents the style codes we
+# intentionally do not gate on when running pylint locally without that flag.
+disable=missing-module-docstring,
+        missing-class-docstring,
+        missing-function-docstring,
+        too-few-public-methods,
+        invalid-name

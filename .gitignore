@@ -15,6 +15,24 @@ data/processed/**/*.csv
 models/*.pkl
 models/*.h5
 models/*.joblib
+models/*.json
+models/registry/
+
+# Generated run artifacts / visualizations (keep the dirs via .gitkeep)
+reports/pipeline_metrics.json
+reports/acuity_classification.json
+reports/experiments/
+reports/drift_reference.json
+reports/drift_report.json
+visualizations/*.png
+visualizations/*.html
+!**/.gitkeep
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
 
 # Python
 __pycache__/
