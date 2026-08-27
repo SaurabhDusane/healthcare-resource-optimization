@@ -37,5 +37,6 @@ joblib>=1.3
 
 # Development / QA
 pytest>=7.4
+pytest-cov>=4.1
 black>=23.12
 pylint>=3.0

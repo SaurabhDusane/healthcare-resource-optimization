@@ -22,20 +22,27 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
+import threading
+import time
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel, field_validator
 
 from src.alerts.early_warning import EarlyWarningSystem
+from src.config import Settings, get_settings
 from src.modeling.time_series_forecaster import TimeSeriesForecaster
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api")
+
+MAX_FEATURES = 200  # upper bound on the size of a prediction payload
 
 
 @dataclass
@@ -67,6 +74,46 @@ class AcuityRequest(BaseModel):
     """Feature payload for an acuity prediction."""
 
     features: Dict[str, float]
+
+    @field_validator("features")
+    @classmethod
+    def _validate_features(cls, value: Dict[str, float]) -> Dict[str, float]:
+        if not value:
+            raise ValueError("features must not be empty")
+        if len(value) > MAX_FEATURES:
+            raise ValueError(f"too many features (max {MAX_FEATURES})")
+        for key, num in value.items():
+            if not math.isfinite(num):
+                raise ValueError(f"feature '{key}' must be a finite number")
+        return value
+
+
+class RateLimiter:
+    """Thread-safe, in-process sliding-window rate limiter (per client key).
+
+    Suitable for a single-process deployment. For multi-instance scaling, swap
+    this for a shared store (e.g. Redis) behind the same interface.
+    """
+
+    def __init__(self, limit_per_minute: int):
+        self.limit = limit_per_minute
+        self.window_seconds = 60.0
+        self._hits: Dict[str, deque] = defaultdict(deque)
+        self._lock = threading.Lock()
+
+    def allow(self, key: str) -> bool:
+        if self.limit <= 0:
+            return True
+        now = time.monotonic()
+        with self._lock:
+            hits = self._hits[key]
+            cutoff = now - self.window_seconds
+            while hits and hits[0] < cutoff:
+                hits.popleft()
+            if len(hits) >= self.limit:
+                return False
+            hits.append(now)
+            return True
 
 
 class ArtifactStore:
@@ -131,29 +178,58 @@ def _forecast_frame(store: ArtifactStore, days: int) -> pd.DataFrame:
     )
 
 
-def create_app(paths: Optional[Paths] = None) -> FastAPI:
+def create_app(
+    paths: Optional[Paths] = None, settings: Optional[Settings] = None
+) -> FastAPI:
     """Application factory (used by tests and by the module-level ``app``)."""
+    settings = settings or get_settings()
+    if paths is None:
+        paths = Paths(
+            models_dir=settings.models_dir,
+            processed_dir=settings.processed_dir,
+            reports_dir=settings.reports_dir,
+        )
     app = FastAPI(
         title="Healthcare Resource Optimization API",
         description="Forecasts, acuity predictions and early-warning alerts.",
         version="1.0.0",
     )
     store = ArtifactStore(paths)
+    limiter = RateLimiter(settings.rate_limit_per_minute)
+
+    def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:
+        """Reject requests without a valid key when auth is enabled."""
+        if settings.auth_enabled and x_api_key != settings.api_key:
+            raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+    auth = [Depends(require_api_key)]
+
+    @app.middleware("http")
+    async def rate_limit(request: Request, call_next):
+        # Liveness probes are never rate-limited.
+        if request.url.path != "/health":
+            client = request.client.host if request.client else "unknown"
+            if not limiter.allow(client):
+                return JSONResponse(
+                    status_code=429, content={"detail": "Rate limit exceeded"}
+                )
+        return await call_next(request)
 
     @app.get("/health")
     def health() -> Dict[str, object]:
         return {
             "status": "ok",
+            "auth_enabled": settings.auth_enabled,
             "model_available": os.path.exists(store.paths.model),
             "daily_visits_available": os.path.exists(store.paths.daily_visits),
             "metrics_available": os.path.exists(store.paths.metrics),
         }
 
-    @app.get("/metrics")
+    @app.get("/metrics", dependencies=auth)
     def metrics() -> Dict:
         return store.metrics()
 
-    @app.post("/predict/acuity")
+    @app.post("/predict/acuity", dependencies=auth)
     def predict_acuity(request: AcuityRequest) -> Dict[str, object]:
         model = store.model()
         feature_names = store.feature_names()
@@ -166,13 +242,13 @@ def create_app(paths: Optional[Paths] = None) -> FastAPI:
             "features_used": feature_names,
         }
 
-    @app.get("/forecast")
+    @app.get("/forecast", dependencies=auth)
     def forecast(days: int = 14) -> Dict[str, object]:
         days = max(1, min(days, 90))
         frame = _forecast_frame(store, days)
         return {"days": days, "forecast": frame.to_dict(orient="records")}
 
-    @app.get("/alerts")
+    @app.get("/alerts", dependencies=auth)
     def alerts(days: int = 14) -> Dict[str, object]:
         days = max(1, min(days, 90))
         daily = store.daily_visits()

@@ -1,0 +1,15 @@
+[run]
+source = src
+omit =
+    */__init__.py
+    src/scrapers/reddit_scraper.py
+    src/scrapers/twitter_scraper.py
+    src/scrapers/scheduler.py
+
+[report]
+precision = 1
+show_missing = True
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    raise NotImplementedError

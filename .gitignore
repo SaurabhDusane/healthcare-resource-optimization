@@ -27,6 +27,12 @@ visualizations/*.png
 visualizations/*.html
 !**/.gitkeep
 
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+
 # Python
 __pycache__/
 *.py[cod]

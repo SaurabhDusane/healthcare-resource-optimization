@@ -1,6 +1,6 @@
 # Healthcare Resource Optimization Analytics Platform
 
-![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
+![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![CI](https://github.com/saurabhdusane/healthcare-resource-optimization/actions/workflows/ci.yml/badge.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -39,7 +39,7 @@ This project demonstrates advanced data analytics capabilities by analyzing 100,
 ## Technologies Used
 
 **Programming & Libraries:**
-- Python 3.9+ (pandas, numpy, scipy, scikit-learn)
+- Python 3.10+ (pandas, numpy, scipy, scikit-learn)
 - Web Scraping (BeautifulSoup, Selenium, PRAW, snscrape)
 - Machine Learning (Prophet, XGBoost, ARIMA)
 - NLP (TextBlob, spaCy)
@@ -162,6 +162,11 @@ uvicorn src.api.app:app --reload   # http://127.0.0.1:8000  (or: docker compose 
 Endpoints: `/` (HTML dashboard), `/forecast?days=14`, `/alerts?days=14`,
 `/predict/acuity` (POST), `/metrics`, `/health`. See the
 [Dashboard & API Guide](docs/dashboard_implementation.md).
+
+The API is open by default (demo mode). For production, configure via environment
+(see `src/config.py`): set `API_KEY` to require an `X-API-Key` header on data
+endpoints, and `RATE_LIMIT_PER_MINUTE` to throttle per-client requests (429 when
+exceeded). `/health` stays open for liveness probes.
 
 **Generate BI dashboard tables:**
 ```bash
