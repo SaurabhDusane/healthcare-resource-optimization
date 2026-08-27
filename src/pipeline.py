@@ -25,11 +25,12 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+from src.data.data_loader import load_er_visits_csv
 from src.data.generate_synthetic_data import SyntheticDataGenerator
 from src.data_processing.cleaning import DataCleaner
 from src.data_processing.dashboard_prep import DashboardPrep
@@ -74,7 +75,11 @@ class PipelineConfig:
     seed: int = 42
     test_size: float = 0.2
     model_type: str = "xgboost"
+    tune: bool = False
     forecast_test_size: int = 30
+    # Data source: "synthetic" (default) or "csv" to load real NHAMCS-format data.
+    data_source: str = "synthetic"
+    er_visits_csv: Optional[str] = None
     raw_dir: str = "data/raw"
     processed_dir: str = "data/processed"
     models_dir: str = "models"
@@ -113,7 +118,7 @@ class Pipeline:
         features = self._engineer(cleaned)
         self._train_acuity_model(features)
         daily = self._summarize_timeseries(features)
-        self._forecast(daily)
+        self._forecast(daily, features)
         self._export_dashboard(features)
         self._monitor_drift(features)
         self._write_metrics()
@@ -127,11 +132,24 @@ class Pipeline:
             os.makedirs(d, exist_ok=True)
 
     def _generate(self) -> Dict[str, pd.DataFrame]:
-        self.logger.info("Step 1/6: generating synthetic data")
         gen = SyntheticDataGenerator(seed=self.config.seed)
+        # Scraped-source samples are always synthetic here; swap in real feeds
+        # the same way the ER visits are swapped below.
         datasets = gen.generate_all(n_visits=self.config.n_visits)
+
+        if self.config.data_source == "csv":
+            if not self.config.er_visits_csv:
+                raise ValueError("data_source='csv' requires er_visits_csv to be set")
+            self.logger.info(
+                "Step 1/6: loading real ER visits from %s", self.config.er_visits_csv
+            )
+            datasets["er_visits"] = load_er_visits_csv(self.config.er_visits_csv)
+        else:
+            self.logger.info("Step 1/6: generating synthetic data")
+
         for name, df in datasets.items():
             df.to_csv(os.path.join(self.config.raw_dir, f"{name}.csv"), index=False)
+        self.metrics["data_source"] = self.config.data_source
         self.metrics["record_counts"] = {k: int(len(v)) for k, v in datasets.items()}
         return datasets
 
@@ -179,7 +197,11 @@ class Pipeline:
         )
 
         model = ClassificationModel(model_type=self.config.model_type)
-        model.train(X_train, y_train)
+        tuning: Dict[str, object] = {"tuned": False}
+        if self.config.tune:
+            tuning = model.tune(X_train, y_train)
+        else:
+            model.train(X_train, y_train)
 
         # Detailed, headless-safe evaluation + report artifacts.
         evaluator = ModelEvaluator()
@@ -233,6 +255,7 @@ class Pipeline:
             "metrics": headline,
             "confusion_matrix": clf_metrics["confusion_matrix"],
             "top_features": top_features,
+            "tuning": tuning,
             "model_path": model_path,
         }
         self.logger.info("Acuity model metrics: %s", headline)
@@ -245,6 +268,8 @@ class Pipeline:
                 "test_size": self.config.test_size,
                 "seed": self.config.seed,
                 "n_features": len(available),
+                "tuned": tuning.get("tuned", False),
+                "best_params": tuning.get("best_params", {}),
             },
             metrics=headline,
             tags={"task": "classification"},
@@ -271,7 +296,23 @@ class Pipeline:
         }
         return daily
 
-    def _forecast(self, daily: pd.DataFrame) -> None:
+    def _build_daily_exog(self, features: pd.DataFrame) -> pd.DataFrame:
+        """Aggregate scraped signals to a daily exogenous-regressor frame."""
+        signal_cols = [
+            c
+            for c in ["news_mentions", "reddit_sentiment", "twitter_sentiment"]
+            if c in features.columns
+        ]
+        if not signal_cols or "visit_date" not in features.columns:
+            return pd.DataFrame()
+        exog = (
+            features.assign(visit_date=pd.to_datetime(features["visit_date"]))
+            .groupby(pd.Grouper(key="visit_date", freq="D"))[signal_cols]
+            .mean()
+        )
+        return exog
+
+    def _forecast(self, daily: pd.DataFrame, features: pd.DataFrame) -> None:
         self.logger.info("Step 6/6: forecasting daily demand (backtest)")
         test_size = self.config.forecast_test_size
         if len(daily) <= test_size + self.config.forecast_test_size:
@@ -288,6 +329,30 @@ class Pipeline:
 
         forecaster = TimeSeriesForecaster()
         result = forecaster.backtest(daily, test_size=test_size)
+        # Rolling-origin cross-validation for a more robust model ranking.
+        try:
+            result["cross_validation"] = forecaster.backtest_cv(
+                daily, horizon=min(14, test_size), n_folds=4
+            )
+        except ValueError as exc:
+            self.logger.warning("Skipping forecast CV: %s", exc)
+            result["cross_validation"] = {"skipped": True, "reason": str(exc)}
+
+        # Test whether scraped signals (news / sentiment) improve the forecast.
+        exog = self._build_daily_exog(features)
+        if not exog.empty:
+            try:
+                result["exogenous"] = TimeSeriesForecaster().backtest_exog(
+                    daily, exog, test_size=test_size
+                )
+                self.logger.info(
+                    "Exogenous signals help forecast: %s",
+                    result["exogenous"]["exog_helps"],
+                )
+            except Exception as exc:  # pragma: no cover - numerical edge cases
+                self.logger.warning("Exogenous backtest failed: %s", exc)
+                result["exogenous"] = {"skipped": True, "reason": str(exc)}
+
         self.metrics["forecast"] = result
         self.logger.info(
             "Best forecaster: %s (%s)", result["best_model"], result["best_metrics"]

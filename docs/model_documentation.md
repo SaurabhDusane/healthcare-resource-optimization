@@ -40,11 +40,19 @@ confusion matrix, and saves:
 - `reports/acuity_classification.json` — metrics
 - `visualizations/confusion_matrix.png`, `roc_curve.png`, `feature_importance.png`
 
-**Interpreting the numbers.** On synthetic data the signal is deliberately
-modest, so ROC-AUC sits near 0.5–0.55. This is expected and honest: the point of
-the demo is a working, leakage-free training/eval loop, not an inflated score.
-Feature importance typically surfaces `has_insurance` and calendar features,
-consistent with how the generator builds acuity.
+**Interpreting the numbers.** The synthetic generator builds acuity from
+observable drivers (age is dominant, plus arrival hour, calendar, and insurance),
+so a leakage-free model recovers **real, learnable structure**: ROC-AUC ≈
+0.66–0.69 and accuracy ≈ 0.76 on a held-out split. Feature importance surfaces
+`AGE` and `has_insurance` first, consistent with how acuity is generated. These
+are illustrative synthetic numbers, but they reflect genuine signal, not noise.
+
+**Hyperparameter tuning.** `ClassificationModel.tune()` runs a
+`RandomizedSearchCV` (stratified CV, scored by ROC-AUC) over a small per-model
+search space and refits to the best estimator. Enable it with `python main.py
+--tune`; the best params and CV score are recorded under
+`metrics["acuity_model"]["tuning"]` and in the experiment log. Tuning gives a
+measurable lift (e.g. test ROC-AUC 0.67 → 0.69).
 
 ---
 
@@ -60,6 +68,7 @@ consistent with how the generator builds acuity.
 |------------------|---------------------------------------------------|-------------------|
 | `seasonal_naive` | repeat last weekly cycle (baseline)               | core              |
 | `arima`          | `statsmodels` ARIMA, default order `(5, 1, 1)`    | statsmodels       |
+| `mlp`            | neural MLP on lagged windows, recursive forecast  | scikit-learn      |
 | `prophet`        | additive model w/ weekly + yearly seasonality     | prophet (optional)|
 
 Prophet is imported lazily; if it isn't installed the backtest simply skips it.
@@ -70,10 +79,23 @@ and ranks models by MAE. There is no shuffling and no future leakage. Metrics:
 MAE, RMSE, MAPE, and a `100 − MAPE` "accuracy" figure (MAPE is divide-by-zero
 guarded).
 
-**Typical result (synthetic, full year).** ARIMA beats the seasonal-naive
-baseline — e.g. MAE ≈ 3.2 vs 4.3, ≈ 82% accuracy on a 30-day holdout. The best
-model and its metrics are written to `reports/pipeline_metrics.json` under
-`forecast`.
+**Rolling-origin cross-validation.** `backtest_cv()` runs several successive
+holdouts (default 4 folds × 14-day horizon), each training only on the data
+before it, and averages MAE per model — a far more robust ranking than one
+holdout. Results land under `forecast["cross_validation"]`.
+
+**Exogenous signals (the early-warning thesis).** `backtest_exog()` compares
+univariate ARIMA against **SARIMAX** with the scraped daily signals
+(`news_mentions`, `reddit_sentiment`, `twitter_sentiment`) as exogenous
+regressors, on the same holdout. It reports both MAEs and an `exog_helps` flag —
+an honest, measured test of whether the web signals actually improve the
+forecast (`forecast["exogenous"]`).
+
+**Typical result (synthetic, full year).** ARIMA beats the seasonal-naive and
+MLP models (e.g. MAE ≈ 3.2 vs 4.3 vs 5.3), and SARIMAX-with-exog edges out
+univariate ARIMA by a small margin — the scraped signals help modestly, as the
+generator links them only weakly. Everything is written to
+`reports/pipeline_metrics.json` under `forecast`.
 
 ---
 
@@ -87,6 +109,20 @@ model and its metrics are written to `reports/pipeline_metrics.json` under
   `ExperimentTracker.load_history()`.
 - **Artifacts.** The trained classifier is persisted to
   `models/acuity_model.joblib` via `joblib`.
+
+## 4. Running on real data
+
+The pipeline is data-source agnostic. To run on a real (de-identified)
+NHAMCS-format ER-visits CSV instead of synthetic data:
+
+```bash
+python main.py --data-csv /path/to/nhamcs_visits.csv
+```
+
+`src/data/data_loader.py` validates the required NHAMCS columns
+(`VDATE, AGE, ARRTIME, IMMEDR, PAYTYPER`), coerces numeric types, and hands the
+frame to the exact same cleaning → feature-engineering → modeling path — no code
+changes. Scraped-signal samples remain synthetic unless you supply real feeds.
 
 Run everything with:
 

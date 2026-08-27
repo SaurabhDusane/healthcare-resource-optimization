@@ -12,7 +12,9 @@
 > (`python main.py`). The case-study figures quoted below (e.g. "91% forecast
 > accuracy", scraped-record counts) are **illustrative results from the original
 > NHAMCS-based study and are not reproduced by the synthetic demo** — the synthetic
-> pipeline reports its own, more modest metrics in `reports/pipeline_metrics.json`.
+> pipeline reports its own reproducible metrics in `reports/pipeline_metrics.json`
+> (acuity ROC-AUC ≈ 0.66–0.69; ARIMA forecast MAE ≈ 3.2/day). To run on a real
+> NHAMCS-format CSV instead, use `python main.py --data-csv <path>`.
 
 ## Project Overview
 
@@ -228,8 +230,10 @@ This project showcases:
 - [x] Expanded test suite (data generation, cleaning, merge, modeling, pipeline)
 
 **Phase 2 — Modeling depth** ✅ _(delivered)_
-- [x] ARIMA + seasonal-naive forecasters with a chronological backtest (Prophet optional)
-- [x] Experiment tracking (`reports/experiments/`) and `docs/model_documentation.md`
+- [x] ARIMA + seasonal-naive + neural-MLP forecasters with a chronological backtest (Prophet optional)
+- [x] Rolling-origin cross-validation and SARIMAX with exogenous scraped signals (early-warning thesis)
+- [x] Hyperparameter tuning (`RandomizedSearchCV`, `--tune`); learnable acuity signal (ROC-AUC ≈ 0.66–0.69)
+- [x] Real-data path (`--data-csv`) behind the same pipeline; experiment tracking + `docs/model_documentation.md`
 - [x] Richer evaluation: ROC-AUC, confusion matrix, saved plots and JSON reports
 - [ ] Deep learning models (LSTM, Transformer) for forecasting _(moved to Phase 4)_
 

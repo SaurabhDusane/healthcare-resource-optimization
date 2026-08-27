@@ -2,7 +2,11 @@
 
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import (
+    RandomizedSearchCV,
+    StratifiedKFold,
+    train_test_split,
+)
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
@@ -15,6 +19,29 @@ from sklearn.metrics import (
 )
 import joblib
 import logging
+
+# Randomized-search spaces per model type (kept small so tuning stays fast).
+PARAM_DISTRIBUTIONS = {
+    "xgboost": {
+        "n_estimators": [100, 150, 200, 300],
+        "max_depth": [3, 4, 6, 8],
+        "learning_rate": [0.03, 0.05, 0.1, 0.2],
+        "subsample": [0.7, 0.85, 1.0],
+    },
+    "random_forest": {
+        "n_estimators": [100, 200, 300],
+        "max_depth": [6, 10, 16, None],
+        "min_samples_leaf": [1, 2, 5],
+    },
+    "gradient_boost": {
+        "n_estimators": [100, 150, 200],
+        "max_depth": [2, 3, 4],
+        "learning_rate": [0.03, 0.05, 0.1],
+    },
+    "logistic": {
+        "C": [0.1, 0.3, 1.0, 3.0, 10.0],
+    },
+}
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -61,6 +88,51 @@ class ClassificationModel:
         self.logger.info("Training complete")
 
         return self.model
+
+    def tune(self, X, y, n_iter=15, cv=3, random_state=42):
+        """
+        Randomized hyperparameter search with stratified cross-validation.
+
+        Fits ``self.model`` to the best estimator found (ranked by ROC-AUC) and
+        returns a summary dict with the best params and CV score.
+        """
+        if self.model is None:
+            self.initialize_model()
+        self.feature_names = X.columns.tolist() if isinstance(X, pd.DataFrame) else None
+
+        distributions = PARAM_DISTRIBUTIONS.get(self.model_type, {})
+        if not distributions:
+            self.logger.warning(
+                "No search space for %s; training defaults", self.model_type
+            )
+            self.model.fit(X, y)
+            return {"tuned": False, "best_params": {}, "cv_roc_auc": None}
+
+        self.logger.info(
+            "Tuning %s (%d iters, %d-fold CV)...", self.model_type, n_iter, cv
+        )
+        search = RandomizedSearchCV(
+            estimator=self.model,
+            param_distributions=distributions,
+            n_iter=n_iter,
+            scoring="roc_auc",
+            cv=StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state),
+            random_state=random_state,
+            n_jobs=-1,
+        )
+        search.fit(X, y)
+        self.model = search.best_estimator_
+        self.logger.info(
+            "Best %s CV ROC-AUC=%.4f params=%s",
+            self.model_type,
+            search.best_score_,
+            search.best_params_,
+        )
+        return {
+            "tuned": True,
+            "best_params": search.best_params_,
+            "cv_roc_auc": round(float(search.best_score_), 4),
+        }
 
     def predict(self, X):
         """Make predictions."""

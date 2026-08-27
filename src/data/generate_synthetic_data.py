@@ -133,9 +133,10 @@ class SyntheticDataGenerator:
             self.rng.integers(1, 5, size=n_records),
         )
 
-        # Acuity: Monday-evening surge and flu season raise high-acuity odds;
-        # uninsured patients skew toward non-urgent (higher IMMEDR).
-        immedr = self._sample_acuity(visit_dates, arrival_hour, uninsured)
+        # Acuity is driven by observable features (age, arrival hour, calendar,
+        # insurance) so a model trained on those features has real, learnable
+        # structure — not noise.
+        immedr = self._sample_acuity(visit_dates, arrival_hour, uninsured, age)
 
         diag1 = self.rng.choice(DIAGNOSES, size=n_records)
 
@@ -186,19 +187,27 @@ class SyntheticDataGenerator:
         visit_dates: pd.DatetimeIndex,
         arrival_hour: np.ndarray,
         uninsured: np.ndarray,
+        age: np.ndarray,
     ) -> np.ndarray:
         """Sample triage acuity (1=emergent .. 5=non-urgent)."""
         n = len(visit_dates)
         dow = visit_dates.dayofweek.to_numpy()
         month = visit_dates.month.to_numpy()
 
-        # Probability of being HIGH acuity (IMMEDR in {1,2}).
-        p_high = np.full(n, 0.30)
+        # Probability of being HIGH acuity (IMMEDR in {1,2}), built from
+        # observable drivers so the classifier can recover real structure.
+        p_high = np.full(n, 0.15)
+        # Age is the dominant driver: older patients present higher acuity.
+        p_high = p_high + 0.40 * (np.asarray(age, dtype=float) - 30) / 70
+        # Overnight (0-5h) arrivals skew sicker; Monday-evening surge; winter.
+        p_high = np.where(
+            (arrival_hour >= 0) & (arrival_hour <= 5), p_high + 0.12, p_high
+        )
         monday_evening = (dow == 0) & (arrival_hour >= 18) & (arrival_hour <= 21)
-        p_high = np.where(monday_evening, p_high + 0.12, p_high)
-        p_high = np.where(np.isin(month, [12, 1, 2]), p_high + 0.05, p_high)
-        p_high = np.where(uninsured, p_high - 0.10, p_high)  # uninsured skew non-urgent
-        p_high = np.clip(p_high, 0.05, 0.95)
+        p_high = np.where(monday_evening, p_high + 0.15, p_high)
+        p_high = np.where(np.isin(month, [12, 1, 2]), p_high + 0.08, p_high)
+        p_high = np.where(uninsured, p_high - 0.12, p_high)  # uninsured skew non-urgent
+        p_high = np.clip(p_high, 0.03, 0.97)
 
         is_high = self.rng.random(n) < p_high
         high_vals = self.rng.choice([1, 2], size=n)

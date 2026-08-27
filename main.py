@@ -41,6 +41,16 @@ def parse_args() -> argparse.Namespace:
         default=0.2,
         help="Fraction of data held out for evaluation.",
     )
+    parser.add_argument(
+        "--tune",
+        action="store_true",
+        help="Run randomized hyperparameter search for the classifier.",
+    )
+    parser.add_argument(
+        "--data-csv",
+        default=None,
+        help="Path to a real NHAMCS-format ER-visits CSV (uses it instead of synthetic).",
+    )
     return parser.parse_args()
 
 
@@ -51,6 +61,9 @@ def main() -> None:
         seed=args.seed,
         model_type=args.model,
         test_size=args.test_size,
+        tune=args.tune,
+        data_source="csv" if args.data_csv else "synthetic",
+        er_visits_csv=args.data_csv,
     )
     metrics = Pipeline(config).run()
 
