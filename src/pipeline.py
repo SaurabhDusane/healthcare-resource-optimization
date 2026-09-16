@@ -32,6 +32,7 @@ from sklearn.model_selection import train_test_split
 
 from src.data.data_loader import load_er_visits_csv
 from src.data.generate_synthetic_data import SyntheticDataGenerator
+from src.data.scenarios import get_scenario
 from src.data_processing.cleaning import DataCleaner
 from src.data_processing.dashboard_prep import DashboardPrep
 from src.data_processing.feature_engineering import FeatureEngineer
@@ -81,6 +82,8 @@ class PipelineConfig:
     # Data source: "synthetic" (default) or "csv" to load real NHAMCS-format data.
     data_source: str = "synthetic"
     er_visits_csv: Optional[str] = None
+    # Simulation scenario preset for synthetic generation (see src/data/scenarios).
+    scenario: str = "baseline"
     raw_dir: str = "data/raw"
     processed_dir: str = "data/processed"
     models_dir: str = "models"
@@ -136,7 +139,9 @@ class Pipeline:
         gen = SyntheticDataGenerator(seed=self.config.seed)
         # Scraped-source samples are always synthetic here; swap in real feeds
         # the same way the ER visits are swapped below.
-        datasets = gen.generate_all(n_visits=self.config.n_visits)
+        scenario = get_scenario(self.config.scenario)
+        datasets = gen.generate_all(n_visits=self.config.n_visits, scenario=scenario)
+        self.metrics["scenario"] = scenario.name
 
         if self.config.data_source == "csv":
             if not self.config.er_visits_csv:

@@ -6,6 +6,7 @@ Examples
     python main.py                      # full run with defaults
     python main.py --visits 5000        # smaller, faster run
     python main.py --model random_forest
+    python main.py --scenario flu_surge # simulate a severe flu season
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 
+from src.data.scenarios import list_scenarios
 from src.pipeline import Pipeline, PipelineConfig
 
 
@@ -51,6 +53,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Path to a real NHAMCS-format ER-visits CSV (uses it instead of synthetic).",
     )
+    parser.add_argument(
+        "--scenario",
+        default="baseline",
+        choices=list_scenarios(),
+        help="Simulation scenario preset for synthetic data (default: baseline).",
+    )
     return parser.parse_args()
 
 
@@ -64,6 +72,7 @@ def main() -> None:
         tune=args.tune,
         data_source="csv" if args.data_csv else "synthetic",
         er_visits_csv=args.data_csv,
+        scenario=args.scenario,
     )
     metrics = Pipeline(config).run()
 
